@@ -17,6 +17,7 @@ except ImportError:
 from parlai.core.agents import Agent
 from parlai.core.utils import AttrDict
 from .doc_db import DocDB
+from .build_db import process_values
 from .tfidf_doc_ranker import TfidfDocRanker
 from .build_tfidf import run as build_tfidf
 from .build_tfidf import live_count_matrix, get_tfidf_matrix
@@ -117,15 +118,9 @@ class TfidfRetrieverAgent(Agent):
             'num_workers': opt['retriever_numworkers'],
         })
 
-        if not os.path.exists(self.db_path):
-            conn = sqlite3.connect(self.db_path)
-            c = conn.cursor()
-            c.execute('CREATE TABLE documents '
-                      '(id INTEGER PRIMARY KEY, text, value);')
-            conn.commit()
-            conn.close()
-
         self.db = DocDB(db_path=opt['retriever_dbpath'])
+        self.db.create_db()
+
         if os.path.exists(self.tfidf_path + '.npz'):
             self.ranker = TfidfDocRanker(
                 tfidf_path=opt['retriever_tfidfpath'], strict=False)
@@ -189,23 +184,7 @@ class TfidfRetrieverAgent(Agent):
         self.episode_done = obs.get('episode_done', False)
 
         if self.episode_done:
-            for ex in self.current:
-                if 'text' in ex:
-                    text = ex['text']
-                    self.context.append(text)
-                    if len(self.context) > 1:
-                        text = '\n'.join(self.context)
-
-                # add labels to context
-                labels = ex.get('labels', ex.get('eval_labels'))
-                label = None
-                if labels is not None:
-                    label = random.choice(labels)
-                    if self.include_labels:
-                        self.context.append(label)
-                # use None for ID to auto-assign doc ids--we don't need to
-                # ever reverse-lookup them
-                self.triples_to_add.append((None, text, label))
+            process_values(self.current, self.context, self.triples_to_add, self.include_labels)
 
             self.episode_done = False
             self.current.clear()

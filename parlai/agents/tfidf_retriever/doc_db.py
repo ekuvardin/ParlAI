@@ -28,6 +28,21 @@ class DocDB(object):
     def __exit__(self, *args):
         self.close()
 
+    def create_db(self):
+        cursor = self.connection.cursor()
+
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='documents'"
+        )
+        result = cursor.fetchone()
+
+        if(result is None):
+            cursor.execute('CREATE TABLE documents '
+                        '(id INTEGER PRIMARY KEY, text, value);')
+            self.connection.commit()
+
+        cursor.close()
+
     def path(self):
         """Return the path to the file that backs this database."""
         return self.path

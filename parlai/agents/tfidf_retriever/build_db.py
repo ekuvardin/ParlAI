@@ -74,23 +74,7 @@ def store_contents(opt, task, save_path, context_length=-1, include_labels=True)
                 current.append(action)
                 episode_done = action['episode_done']
 
-            for ex in current:
-                if 'text' in ex:
-                    text = ex['text']
-                    context.append(text)
-                    if len(context) > 1:
-                        text = '\n'.join(context)
-
-                # add labels to context
-                labels = ex.get('labels', ex.get('eval_labels'))
-                label = None
-                if labels is not None:
-                    label = random.choice(labels)
-                    if include_labels:
-                        context.append(label)
-                # use None for ID to auto-assign doc ids--we don't need to
-                # ever reverse-lookup them
-                triples.append((None, text, label))
+            process_values(current, context, triples, include_labels)
 
             c.executemany('INSERT OR IGNORE INTO documents VALUES (?,?,?)',
                           triples)
@@ -107,3 +91,22 @@ def store_contents(opt, task, save_path, context_length=-1, include_labels=True)
     logger.info('Committing...')
     conn.commit()
     conn.close()
+
+def process_values(current, context, triples, include_labels):
+    for ex in current:
+        if 'text' in ex:
+            text = ex['text']
+            context.append(text)
+            if len(context) > 1:
+                text = '\n'.join(context)
+
+        # add labels to context
+        labels = ex.get('labels', ex.get('eval_labels'))
+        label = None
+        if labels is not None:
+            label = random.choice(labels)
+            if include_labels:
+                context.append(label)
+        # use None for ID to auto-assign doc ids--we don't need to
+        # ever reverse-lookup them
+        triples.append((None, text, label))
